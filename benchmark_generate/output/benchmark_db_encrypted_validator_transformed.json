@@ -1,0 +1,19 @@
+{
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": [
+        "secret",
+        "num"
+      ],
+      "properties": {
+        "secret": {
+          "bsonType": "binData"
+        },
+        "num": {
+          "bsonType": "long"
+        }
+      }
+    }
+  }
+}

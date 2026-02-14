@@ -1,0 +1,12 @@
+[
+  {
+    "property_path": [
+      "object_0",
+      "object_1",
+      "object_2",
+      "value"
+    ],
+    "bsonType": "int",
+    "encryption": "AES256_CTR"
+  }
+]

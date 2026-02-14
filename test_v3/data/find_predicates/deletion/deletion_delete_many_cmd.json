@@ -1,0 +1,9 @@
+{
+  "delete": "COLLECTION",
+  "deletes": [
+    {
+      "q": { "enc": "s2" },
+      "limit": 0
+    }
+  ]
+}

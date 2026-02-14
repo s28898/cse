@@ -1,0 +1,422 @@
+//
+// Created by Bruno Kuś on 10/02/2026.
+//
+
+#ifndef MONGO_2_BSONDECRYPTORV2_H
+#define MONGO_2_BSONDECRYPTORV2_H
+
+
+
+
+
+#include <algorithm>
+#include <cstdint>
+#include <iostream>
+#include <memory>
+#include <ranges>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include <bsoncxx/array/view.hpp>
+#include <bsoncxx/array/value.hpp>
+#include <bsoncxx/document/value.hpp>
+#include <bsoncxx/document/view.hpp>
+#include <bsoncxx/types.hpp>
+#include <bsoncxx/builder/basic/array.hpp>
+#include <bsoncxx/builder/basic/document.hpp>
+#include <bsoncxx/builder/basic/kvp.hpp>
+#include <bsoncxx/builder/basic/array.hpp>
+#include <bsoncxx/builder/basic/document.hpp>
+#include <bsoncxx/types/bson_value/value.hpp>
+
+#include "EncryptionService_v2.h"
+#include "../PropertyMetadataStorage.h"
+
+struct BsonDecryptorV2
+{
+    static constexpr auto k_array_placeholder = "[0]";
+    
+    BsonDecryptorV2(std::string collectionName,
+                    std::shared_ptr<EncryptionServiceV2> encryptionService,
+                    std::shared_ptr<PropertyMetadataStorage> metadata)
+      : m_collectionName(std::move(collectionName))
+      , m_encryption(std::move(encryptionService))
+      , m_metadata(std::move(metadata))
+    {
+      if (m_collectionName.empty())
+        throw std::runtime_error("BsonDecryptorV2: empty collectionName");
+      if (!m_encryption)
+        throw std::runtime_error("BsonDecryptorV2: encryptionService == null");
+      if (!m_metadata)
+        throw std::runtime_error("BsonDecryptorV2: metadata == null");
+    }
+    
+    bsoncxx::document::value decrypt_deep(bsoncxx::document::view document)
+    {
+      m_current_path.clear();
+      return decrypt_object(document);
+    }
+    
+    private:
+    std::string m_collectionName;
+    std::shared_ptr<EncryptionServiceV2> m_encryption;
+    std::shared_ptr<PropertyMetadataStorage> m_metadata;
+    
+    std::vector<std::string> m_current_path;
+    
+    
+    static std::string path_to_string(const std::vector<std::string>& p)
+    {
+      std::ostringstream ss;
+      ss << '[';
+      for (std::size_t i = 0; i < p.size(); ++i)
+      {
+        ss << p[i];
+        if (i + 1 < p.size()) ss << ", ";
+      }
+      ss << ']';
+      return ss.str();
+    }
+    
+    inline void push_path(std::string node) { m_current_path.emplace_back(std::move(node)); }
+    inline void pop_path()
+    {
+      if (m_current_path.empty())
+        throw std::runtime_error("BsonDecryptorV2: pop_path on empty stack");
+      m_current_path.pop_back();
+    }
+    
+    inline bool path_matches() const
+    {
+      auto eq = [&](const std::vector<std::string>& p) { return std::ranges::equal(p, m_current_path); };
+      return std::ranges::find_if(m_metadata->paths(), eq) != m_metadata->paths().end();
+    }
+    
+    std::size_t matched_index() const
+    {
+      auto eq = [&](const std::vector<std::string>& p) { return std::ranges::equal(p, m_current_path); };
+      auto it = std::ranges::find_if(m_metadata->paths(), eq);
+      if (it == m_metadata->paths().end())
+        throw std::runtime_error("BsonDecryptorV2: metadata missing path " + path_to_string(m_current_path));
+      return static_cast<std::size_t>(std::distance(m_metadata->paths().begin(), it));
+    }
+    
+    enum class EncKind
+    {
+        AES256_GCM,
+        AES192_GCM,
+        OPE_32_64
+    };
+    
+    EncKind encryption_kind_for_path(std::size_t idx) const
+    {
+      if (idx >= m_metadata->encryptions.size())
+        throw std::runtime_error("BsonDecryptorV2: encryptions index out of range");
+      
+      const std::string& s = m_metadata->encryptions.at(idx);
+      
+      if (s == "AES256_GCM" || s == "AES256" || s == "AES")
+        return EncKind::AES256_GCM;
+      if (s == "AES192_GCM" || s == "AES192")
+        return EncKind::AES192_GCM;
+      if (s == "OPE_32_64" || s == "OPE")
+        return EncKind::OPE_32_64;
+      
+      throw std::runtime_error("BsonDecryptorV2: unsupported encryption kind '" + s +
+                               "' at path " + path_to_string(m_current_path));
+    }
+    
+    enum class PlainType
+    {
+        String,
+        Int32,
+        Int64,
+        Double,
+        Unknown
+    };
+    
+    PlainType plain_type_for_path(std::size_t idx) const
+    {
+      if (idx >= m_metadata->types.size())
+        throw std::runtime_error("BsonDecryptorV2: types index out of range");
+      
+      const std::string& t = m_metadata->types.at(idx);
+      if (t == "string") return PlainType::String;
+      if (t == "int")    return PlainType::Int32;
+      if (t == "long")   return PlainType::Int64;
+      if (t == "double") return PlainType::Double;
+      return PlainType::Unknown;
+    }
+    
+    static EncryptionServiceV2::AesKind to_aes_kind(EncKind k)
+    {
+      return (k == EncKind::AES192_GCM)
+             ? EncryptionServiceV2::AesKind::AES192_GCM
+             : EncryptionServiceV2::AesKind::AES256_GCM;
+    }
+    
+    
+    bsoncxx::types::b_string decrypt_string_from_aes(const bsoncxx::types::b_binary& bin, EncKind enc)
+    {
+      const auto plaintext = m_encryption->decrypt_aes(m_collectionName, to_aes_kind(enc), bin);
+      return bsoncxx::types::b_string{plaintext};
+    }
+    
+    static std::int64_t parse_int64_strict(std::string_view s)
+    {
+      std::size_t pos = 0;
+      long long v = 0;
+      try
+      {
+        v = std::stoll(std::string(s), &pos, 10);
+      }
+      catch (...)
+      {
+        throw std::runtime_error("BsonDecryptorV2: failed to parse int64 plaintext '" + std::string(s) + "'");
+      }
+      if (pos != s.size())
+        throw std::runtime_error("BsonDecryptorV2: trailing chars in int plaintext '" + std::string(s) + "'");
+      return static_cast<std::int64_t>(v);
+    }
+    
+    static double parse_double_strict(std::string_view s)
+    {
+      std::size_t pos = 0;
+      double v = 0.0;
+      try
+      {
+        v = std::stod(std::string(s), &pos);
+      }
+      catch (...)
+      {
+        throw std::runtime_error("BsonDecryptorV2: failed to parse double plaintext '" + std::string(s) + "'");
+      }
+      if (pos != s.size())
+        throw std::runtime_error("BsonDecryptorV2: trailing chars in double plaintext '" + std::string(s) + "'");
+      return v;
+    }
+    
+    bsoncxx::types::b_int32 decrypt_int32_from_aes(const bsoncxx::types::b_binary& bin, EncKind enc)
+    {
+      const auto plaintext = m_encryption->decrypt_aes(m_collectionName, to_aes_kind(enc), bin);
+      const auto v = parse_int64_strict(plaintext);
+      if (v < std::numeric_limits<std::int32_t>::min() || v > std::numeric_limits<std::int32_t>::max())
+        throw std::runtime_error("BsonDecryptorV2: AES int plaintext out of int32 range at " + path_to_string(m_current_path));
+      return bsoncxx::types::b_int32{static_cast<std::int32_t>(v)};
+    }
+    
+    bsoncxx::types::b_int64 decrypt_int64_from_aes(const bsoncxx::types::b_binary& bin, EncKind enc)
+    {
+      const auto plaintext = m_encryption->decrypt_aes(m_collectionName, to_aes_kind(enc), bin);
+      const auto v = parse_int64_strict(plaintext);
+      return bsoncxx::types::b_int64{v};
+    }
+    
+    bsoncxx::types::b_double decrypt_double_from_aes(const bsoncxx::types::b_binary& bin, EncKind enc)
+    {
+      const auto plaintext = m_encryption->decrypt_aes(m_collectionName, to_aes_kind(enc), bin);
+      const auto v = parse_double_strict(plaintext);
+      return bsoncxx::types::b_double{v};
+    }
+    
+    bsoncxx::types::b_int32 decrypt_int32_from_ope(const bsoncxx::types::b_int64& element)
+    {
+      if (element.value < 0)
+        throw std::runtime_error("BsonDecryptorV2: OPE ciphertext is negative at " + path_to_string(m_current_path));
+      
+      const auto plain = m_encryption->decrypt_ope_uint64(m_collectionName, static_cast<std::uint64_t>(element.value));
+      return bsoncxx::types::b_int32{plain};
+    }
+    
+    
+    bsoncxx::document::value decrypt_object(bsoncxx::document::view object)
+    {
+      using bsoncxx::builder::basic::kvp;
+      bsoncxx::builder::basic::document out{};
+      
+      for (const auto& el : object)
+      {
+        const std::string key = el.key().data();
+        
+        if (el.type() == bsoncxx::type::k_document)
+        {
+          auto sub = el.get_document().view();
+          if (sub.empty())
+          {
+            out.append(kvp(key, bsoncxx::builder::basic::make_document()));
+            continue;
+          }
+          
+          push_path(key);
+          out.append(kvp(key, decrypt_object(sub)));
+          pop_path();
+          continue;
+        }
+        
+        if (el.type() == bsoncxx::type::k_array)
+        {
+          auto arr = el.get_array().value;
+          if (arr.empty())
+          {
+            out.append(kvp(key, bsoncxx::builder::basic::make_array()));
+            continue;
+          }
+          
+          push_path(key);
+          out.append(kvp(key, decrypt_array(arr)));
+          pop_path();
+          continue;
+        }
+        
+        push_path(key);
+        
+        if (path_matches())
+        {
+          const auto idx = matched_index();
+          const auto enc = encryption_kind_for_path(idx);
+          const auto t = plain_type_for_path(idx);
+          
+          if (enc == EncKind::OPE_32_64)
+          {
+            if (el.type() != bsoncxx::type::k_int64)
+              throw std::runtime_error("BsonDecryptorV2: expected int64 OPE ciphertext at " + path_to_string(m_current_path));
+            
+            out.append(kvp(key, decrypt_int32_from_ope(el.get_int64())));
+            pop_path();
+            continue;
+          }
+          
+          if (el.type() != bsoncxx::type::k_binary)
+            throw std::runtime_error("BsonDecryptorV2: expected binary AES ciphertext at " + path_to_string(m_current_path));
+          
+          const auto bin = el.get_binary();
+          
+          switch (t)
+          {
+            case PlainType::String:
+              out.append(kvp(key, decrypt_string_from_aes(bin, enc)));
+              break;
+            case PlainType::Int32:
+              out.append(kvp(key, decrypt_int32_from_aes(bin, enc)));
+              break;
+            case PlainType::Int64:
+              out.append(kvp(key, decrypt_int64_from_aes(bin, enc)));
+              break;
+            case PlainType::Double:
+              out.append(kvp(key, decrypt_double_from_aes(bin, enc)));
+              break;
+            case PlainType::Unknown:
+            default:
+              out.append(kvp(key, decrypt_string_from_aes(bin, enc)));
+              break;
+          }
+          
+          pop_path();
+          continue;
+        }
+        
+        out.append(kvp(el.key(), el.get_value()));
+        pop_path();
+      }
+      
+      return out.extract();
+    }
+    
+    bsoncxx::array::value decrypt_array(bsoncxx::array::view array)
+    {
+      bsoncxx::builder::basic::array out{};
+      
+      for (const auto& el : array)
+      {
+        if (el.type() == bsoncxx::type::k_document)
+        {
+          auto sub = el.get_document().view();
+          if (sub.empty())
+          {
+            out.append(bsoncxx::builder::basic::make_document());
+            continue;
+          }
+          
+          push_path(k_array_placeholder);
+          out.append(decrypt_object(sub));
+          pop_path();
+          continue;
+        }
+        
+        if (el.type() == bsoncxx::type::k_array)
+        {
+          auto sub = el.get_array().value;
+          if (sub.empty())
+          {
+            out.append(bsoncxx::builder::basic::make_array());
+            continue;
+          }
+          
+          push_path(k_array_placeholder);
+          out.append(decrypt_array(sub));
+          pop_path();
+          continue;
+        }
+        
+        push_path(k_array_placeholder);
+        
+        if (path_matches())
+        {
+          const auto idx = matched_index();
+          const auto enc = encryption_kind_for_path(idx);
+          const auto t = plain_type_for_path(idx);
+          
+          if (enc == EncKind::OPE_32_64)
+          {
+            if (el.type() != bsoncxx::type::k_int64)
+              throw std::runtime_error("BsonDecryptorV2: expected int64 OPE ciphertext at " + path_to_string(m_current_path));
+            
+            out.append(decrypt_int32_from_ope(el.get_int64()));
+            pop_path();
+            continue;
+          }
+          
+          if (el.type() != bsoncxx::type::k_binary)
+            throw std::runtime_error("BsonDecryptorV2: expected binary AES ciphertext at " + path_to_string(m_current_path));
+          
+          const auto bin = el.get_binary();
+          
+          switch (t)
+          {
+            case PlainType::String:
+              out.append(decrypt_string_from_aes(bin, enc));
+              break;
+            case PlainType::Int32:
+              out.append(decrypt_int32_from_aes(bin, enc));
+              break;
+            case PlainType::Int64:
+              out.append(decrypt_int64_from_aes(bin, enc));
+              break;
+            case PlainType::Double:
+              out.append(decrypt_double_from_aes(bin, enc));
+              break;
+            case PlainType::Unknown:
+            default:
+              out.append(decrypt_string_from_aes(bin, enc));
+              break;
+          }
+          
+          pop_path();
+          continue;
+        }
+        
+        out.append(el.get_value());
+        pop_path();
+      }
+      
+      return out.extract();
+    }
+};
+
+
+
+#endif //MONGO_2_BSONDECRYPTORV2_H

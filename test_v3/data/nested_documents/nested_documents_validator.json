@@ -1,0 +1,32 @@
+{
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": ["object_0"],
+      "properties": {
+        "object_0": {
+          "bsonType": "object",
+          "required": ["object_1"],
+          "properties": {
+            "object_1": {
+              "bsonType": "object",
+              "required": ["object_2"],
+              "properties": {
+                "object_2": {
+                  "bsonType": "object",
+                  "required": ["value"],
+                  "properties": {
+                    "value": {
+                      "bsonType": "int",
+                      "encryption": "AES256_CTR"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

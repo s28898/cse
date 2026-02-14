@@ -1,0 +1,18 @@
+{
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": ["secret", "num"],
+      "properties": {
+        "secret": {
+          "bsonType": "string",
+          "encryption" : "AES256_CTR"
+        },
+        "num": {
+          "bsonType": "int",
+          "encryption" : "OPE_32_64"
+        }
+      }
+    }
+  }
+}

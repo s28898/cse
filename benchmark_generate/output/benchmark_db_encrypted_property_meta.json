@@ -1,0 +1,16 @@
+[
+  {
+    "property_path": [
+      "secret"
+    ],
+    "bsonType": "string",
+    "encryption": "AES256_CTR"
+  },
+  {
+    "property_path": [
+      "num"
+    ],
+    "bsonType": "int",
+    "encryption": "OPE_32_64"
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": ["arr"],
+      "properties": {
+        "arr": {
+          "bsonType": "array",
+          "items": {
+            "bsonType": "array",
+            "items": {
+              "bsonType": "array",
+              "items": {
+                "bsonType": "string",
+                "encryption": "AES"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

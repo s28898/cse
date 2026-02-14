@@ -1,0 +1,11 @@
+{
+  "update": "__COLLECTION__",
+  "updates": [
+    {
+      "q": { "plain": "p2" },
+      "u": { "$set": { "nested.enc2": "n2_new" } },
+      "multi": false,
+      "upsert": false
+    }
+  ]
+}

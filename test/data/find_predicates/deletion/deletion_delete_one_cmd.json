@@ -1,0 +1,9 @@
+{
+  "delete": "__COLLECTION__",
+  "deletes": [
+    {
+      "q": { "plain": "p1" },
+      "limit": 1
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "databaseName": "testdb",
+  "policies": [
+    {
+      "collectionName": "find_predicates",
+      "keyId": {
+        "AES256_GCM": "cse/my_db/find_predicates/aes256_gcm",
+        "AES192_GCM": "cse/my_db/find_predicates/aes192_gcm",
+        "OPE_32_64": "cse/db/collection/ope_32_64"
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "property_path": [
+      "enc"
+    ],
+    "bsonType": "string",
+    "encryption": "AES256_CTR"
+  },
+  {
+    "property_path": [
+      "nested",
+      "enc2"
+    ],
+    "bsonType": "string",
+    "encryption": "AES256_CTR"
+  },
+  {
+    "property_path": [
+      "tags",
+      "[0]"
+    ],
+    "bsonType": "string",
+    "encryption": "AES256_CTR"
+  },
+  {
+    "property_path": [
+      "items",
+      "[0]",
+      "secretNote"
+    ],
+    "bsonType": "string",
+    "encryption": "AES256_CTR"
+  }
+]

@@ -1,0 +1,8 @@
+{
+    "items": {
+      "$elemMatch": {
+        "sku": "A",
+        "secretNote": "red"
+      }
+    }
+}

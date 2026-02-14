@@ -1,0 +1,13 @@
+{
+  "databaseName" : "benchmark_encrypted",
+  "policies" : [
+    {
+      "collectionName" : "collection_encrypted",
+      "keyId" : {
+        "AES256_CTR": "testdb/testcol/aes256_ctr",
+        "AES192_CTR": "testdb/testcol/aes192_ctr",
+        "OPE_32_64": "testdb/testcol/ope_32_64"
+      }
+    }
+  ]
+}

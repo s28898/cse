@@ -1,0 +1,16 @@
+{
+  "$and": [
+    { "plain": "john" },
+    {
+      "$or": [
+        { "enc": "secretA" },
+        { "enc": "secretC" }
+      ]
+    },
+    {
+      "$nor": [
+        { "enc": "secretB" }
+      ]
+    }
+  ]
+}

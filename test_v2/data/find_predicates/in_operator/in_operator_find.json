@@ -1,0 +1,3 @@
+{
+   "enc": { "$in": ["secretA", "secretC"] }
+}

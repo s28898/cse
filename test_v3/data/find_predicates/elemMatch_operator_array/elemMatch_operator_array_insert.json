@@ -1,0 +1,21 @@
+[
+  {
+    "plain": "p1",
+    "enc": "s1",
+    "nested": { "enc2": "n1", "plain2": "x" },
+    "tags": [],
+    "items": [
+      { "sku": "A", "secretNote": "green" }
+    ]
+  },
+  {
+    "plain": "p2",
+    "enc": "s2",
+    "nested": { "enc2": "n2", "plain2": "x" },
+    "tags": [],
+    "items": [
+      { "sku": "A", "secretNote": "red" },
+      { "sku": "B", "secretNote": "blue" }
+    ]
+  }
+]

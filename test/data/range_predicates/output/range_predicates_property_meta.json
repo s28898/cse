@@ -1,0 +1,9 @@
+[
+  {
+    "property_path": [
+      "num"
+    ],
+    "bsonType": "int",
+    "encryption": "OPE"
+  }
+]

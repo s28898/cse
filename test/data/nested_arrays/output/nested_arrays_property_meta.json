@@ -1,0 +1,12 @@
+[
+  {
+    "property_path": [
+      "arr",
+      "[0]",
+      "[0]",
+      "[0]"
+    ],
+    "bsonType": "string",
+    "encryption": "AES"
+  }
+]

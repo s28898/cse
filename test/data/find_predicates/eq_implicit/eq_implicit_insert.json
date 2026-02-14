@@ -1,0 +1,4 @@
+[
+  { "plain": "p1", "enc": "secretA", "nested": { "enc2": "nA", "plain2": "x" }, "tags": ["t1"], "items": [] },
+  { "plain": "p2", "enc": "secretB", "nested": { "enc2": "nB", "plain2": "y" }, "tags": ["t2"], "items": [] }
+]

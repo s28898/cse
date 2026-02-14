@@ -1,0 +1,11 @@
+{
+  "update": "__COLLECTION__",
+  "updates": [
+    {
+      "q": { },
+      "u": { "$set": { "nested.plain2": "y" } },
+      "multi": true,
+      "upsert": false
+    }
+  ]
+}

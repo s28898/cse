@@ -1,0 +1,11 @@
+{
+  "update": "__COLLECTION__",
+  "updates": [
+    {
+      "q": { "plain": "p1" },
+      "u": { "$set": { "enc": "s1_new" } },
+      "multi": false,
+      "upsert": false
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": [
+        "plain",
+        "enc",
+        "nested",
+        "tags",
+        "items"
+      ],
+      "properties": {
+        "plain": {
+          "bsonType": "string"
+        },
+        "enc": {
+          "bsonType": "binData"
+        },
+        "nested": {
+          "bsonType": "object",
+          "required": [
+            "enc2",
+            "plain2"
+          ],
+          "properties": {
+            "enc2": {
+              "bsonType": "binData"
+            },
+            "plain2": {
+              "bsonType": "string"
+            }
+          }
+        },
+        "tags": {
+          "bsonType": "array",
+          "items": {
+            "bsonType": "binData"
+          }
+        },
+        "items": {
+          "bsonType": "array",
+          "items": {
+            "bsonType": "object",
+            "required": [
+              "sku",
+              "secretNote"
+            ],
+            "properties": {
+              "sku": {
+                "bsonType": "string"
+              },
+              "secretNote": {
+                "bsonType": "binData"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

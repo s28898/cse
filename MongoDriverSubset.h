@@ -117,6 +117,7 @@ requires(
   } -> std::same_as<bsoncxx::v_noabi::stdx::optional<mongocxx::v_noabi::result::update>>;
 };
 
+
 template<class T>
 concept SupportsUpdateMany =
 requires(

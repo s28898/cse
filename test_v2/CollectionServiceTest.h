@@ -64,7 +64,7 @@ auto processSchemaValidator(
 
 struct DependencyContainer
 {
-   
+
     DependencyContainer(
       std::string_view propertyMetadataStorageFilename,
       std::string_view uri,
@@ -86,12 +86,12 @@ struct DependencyContainer
     }
     , m_collectionServicePtr{ std::make_shared<CollectionService>(m_databasePtr, std::string(collectionName), m_encryptionServicePtr, m_propertyMetadataStoragePtr)}
     {};
-    
+
     auto collectionServicePtr() const -> std::shared_ptr<CollectionService>
     {
       return m_collectionServicePtr;
     }
-    
+
     auto databasePtr() const -> std::shared_ptr<mongocxx::database>
     {
       return m_databasePtr;

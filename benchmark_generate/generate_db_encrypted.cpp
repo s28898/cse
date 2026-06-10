@@ -9,10 +9,47 @@
 
 #include "../test_v3/CollectionServiceTest.h"
 
+struct Stats
+{
+  double avg_ms{};
+  double median_ms{};
+  double min_ms{};
+  double max_ms{};
+};
+
+auto operator<<(std::ostream& os, const Stats& stats) -> std::ostream&
+{
+    os << "{ \"avg_ms\": " << stats.avg_ms
+    << ", \"median_ms\": " << stats.median_ms
+    << ", \"min_ms\": " << stats.min_ms
+    << ", \"max_ms\": " << stats.max_ms
+    << " }";
+    return os;
+}
+
+inline
+auto compute_stats_ms(std::vector<double> samples) -> Stats
+{
+  if (samples.empty()) return {};
+
+  std::sort(samples.begin(), samples.end());
+
+  Stats s{};
+  s.min_ms = samples.front();
+  s.max_ms = samples.back();
+  s.avg_ms = std::accumulate(samples.begin(), samples.end(), 0.0) / static_cast<double>(samples.size());
+
+  const auto n = samples.size();
+  if (n % 2 == 1) { s.median_ms = samples[n / 2]; }
+  else { s.median_ms = 0.5 * (samples[n / 2 - 1] + samples[n / 2]); }
+
+  return s;
+}
+
 int main()
 {
   mongocxx::instance instance{};
-  
+
   constexpr auto uri = "mongodb://localhost:27092";
   constexpr auto databaseName = "benchmark_encrypted";
   constexpr auto collectionName = "collection_encrypted";
@@ -24,16 +61,16 @@ int main()
   constexpr auto propertyMetadataStorageOutputFilename = "../benchmark_generate/output/benchmark_db_encrypted_property_meta.json";
   constexpr auto propertyMetadataStorageFilename = propertyMetadataStorageOutputFilename;
   constexpr auto validatorTransformedFilename = schemaValidatorTransformedOutputFilename;
-  
+
   constexpr auto keyPolicyFilename = "../benchmark_generate/benchmark_db_encrypted_key_policy.json";
-  
+
   processSchemaValidator
     (
       schemaValidatorExtFilename,
       schemaValidatorTransformedOutputFilename,
       propertyMetadataStorageOutputFilename
     );
-  
+
   DependencyContainer container
     {
       propertyMetadataStorageFilename,
@@ -42,18 +79,18 @@ int main()
       databaseName,
       collectionName
     };
-  
+
   CollectionServiceV3& collectionService = *container.collectionServicePtr();
   auto &database = *container.databasePtr();
-  
+
   if (not database.has_collection(collectionName))
   {
     const auto validatorTransformed = bsoncxx::from_json(jsonFromFile(validatorTransformedFilename).dump());
     database.create_collection(collectionName, validatorTransformed.view());
   }
-  
+
   std::cout << "estimated: " << database[collectionName].estimated_document_count();
-  
+
   constexpr auto documentTotal = 500'000;
   constexpr auto distinctSecretTotal = 1'000;
 

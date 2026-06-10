@@ -18,7 +18,7 @@ add_executable(
         benchmark_generate/generate_db_plain.cpp
         bson_util.h
         bson_util.cpp
-        benchmark_generate/generate_db_encrypted.cpp
+
 )
 add_executable(mongo_2 main.cpp
         EncryptionService_v1.h
@@ -29,10 +29,15 @@ add_executable(mongo_2 main.cpp
         util.h
         SchemaValidatorTransformer.cpp
         util.cpp
+        bson_util.h
+        bson_util.cpp
         BsonDecryptor.cpp
         BsonDecryptor.h
         PropertyMetadataStorage.cpp
         PropertyMetadataStorage.h
+
+
+
 
         ope/aes.hh
         ope/bn.hh
@@ -66,6 +71,8 @@ add_executable(mongo_2 main.cpp
         CursorView.h
         test_v2/CollectionServiceTest.cpp
         test_v2/CollectionServiceTest.h
+
+
         v2/StatementTransformerV2.cpp
         v2/StatementTransformerV2.h
         v2/SchemaValidatorTransformerV2.cpp
@@ -90,9 +97,11 @@ add_executable(mongo_2 main.cpp
 find_package(nlohmann_json 3.12.0 REQUIRED)
 
 find_package(OpenSSL REQUIRED)
-target_link_libraries(mongo_2 PRIVATE OpenSSL::Crypto)
-target_link_libraries(mongo_2 PRIVATE "/opt/homebrew/opt/gmp/lib/libgmp.dylib")
-target_link_libraries(mongo_2 PRIVATE "/opt/homebrew/Cellar/ntl/11.6.0/lib/libntl.a")
+
+message(STATUS "OPENSSL_FOUND = ${OPENSSL_FOUND}")
+message(STATUS "OPENSSL_VERSION = ${OPENSSL_VERSION}")
+message(STATUS "OPENSSL_INCLUDE_DIR = ${OPENSSL_INCLUDE_DIR}")
+message(STATUS "OPENSSL_CRYPTO_LIBRARY = ${OPENSSL_CRYPTO_LIBRARY}")
 
 add_executable(
         tests_v2
@@ -130,9 +139,49 @@ add_executable(
         test_v2/tests/test_and_or_nor_operator.cpp
 )
 
+
 add_executable(
-        benchmark_run
-        benchmark_run/run.cpp
+    benchmark_run_encrypted
+    benchmark_run/benchmark_run_encrypted.cpp
+
+    v3/BsonDecryptorV3.h
+    v3/BsonDecryptorV3.cpp
+    v3/CollectionServiceV3.h
+    v3/CollectionServiceV3.cpp
+    v3/EncryptionServiceV3.h
+    v3/EncryptionServiceV3.cpp
+    v3/SchemaValidatorTransformerV3.h
+    v3/SchemaValidatorTransformerV3.cpp
+    v3/StatementTransformerV3.cpp
+    v3/StatementTransformerV3.h
+
+
+    util.h
+    util.cpp
+
+    bson_util.h
+    bson_util.cpp
+
+    CursorView.h
+    CursorView.cpp
+    ope/aes.hh
+    ope/bn.hh
+    ope/cmc.hh
+    ope/errstream.hh
+    ope/hgd.hh
+    ope/hgd.cc
+    ope/hmac.hh
+    ope/ope.cc
+    ope/ope.hh
+    ope/prng.cc
+    ope/prng.hh
+    ope/sha.hh
+    ope/zz.cc
+    ope/zz.hh
+)
+add_executable(
+        benchmark_run_plain
+        benchmark_run/benchmark_run_plain.cpp
 
         v3/BsonDecryptorV3.h
         v3/BsonDecryptorV3.cpp
@@ -209,10 +258,8 @@ add_executable(
         ope/zz.cc
         ope/zz.hh
 )
-add_executable(
-        tests_v3
-
-        ope/aes.hh
+add_library(ope STATIC
+     ope/aes.hh
         ope/bn.hh
         ope/cmc.hh
         ope/errstream.hh
@@ -226,6 +273,9 @@ add_executable(
         ope/sha.hh
         ope/zz.cc
         ope/zz.hh
+)
+add_executable(
+        tests_v3
 
         v3/BsonDecryptorV3.h
         v3/BsonDecryptorV3.cpp
@@ -265,6 +315,8 @@ add_executable(
 
 
 )
+
+
 add_executable(tests
         test/doctest_main.cpp
         test/test_1.cpp
@@ -326,17 +378,14 @@ add_executable(tests
         bson_util.cpp
 )
 
-target_link_libraries(tests PRIVATE OpenSSL::Crypto)
-target_link_libraries(tests PRIVATE "/opt/homebrew/opt/gmp/lib/libgmp.dylib")
-target_link_libraries(tests PRIVATE "/opt/homebrew/Cellar/ntl/11.6.0/lib/libntl.a")
 
-target_link_libraries(tests_v2 PRIVATE OpenSSL::Crypto)
-target_link_libraries(tests_v2 PRIVATE "/opt/homebrew/opt/gmp/lib/libgmp.dylib")
-target_link_libraries(tests_v2 PRIVATE "/opt/homebrew/Cellar/ntl/11.6.0/lib/libntl.a")
+target_include_directories(ope SYSTEM PUBLIC "/opt/homebrew/include")
+target_link_libraries(ope PUBLIC "/opt/homebrew/Cellar/ntl/11.6.0/lib/libntl.a"
+    "/opt/homebrew/opt/gmp/lib/libgmp.dylib"
+    # OpenSSL::Crypto
+    ${OPENSSL_CRYPTO_LIBRARY}
+)
 
-target_link_libraries(tests_v3 PRIVATE OpenSSL::Crypto)
-target_link_libraries(tests_v3 PRIVATE "/opt/homebrew/opt/gmp/lib/libgmp.dylib")
-target_link_libraries(tests_v3 PRIVATE "/opt/homebrew/Cellar/ntl/11.6.0/lib/libntl.a")
 
 target_link_libraries(tests
         PRIVATE
@@ -344,6 +393,7 @@ target_link_libraries(tests
         cryptopp
         mongocxx
         bsoncxx
+        ope
 )
 
 target_link_libraries(tests_v2
@@ -352,6 +402,7 @@ target_link_libraries(tests_v2
         cryptopp
         mongocxx
         bsoncxx
+        ope
 )
 
 target_link_libraries(tests_v3
@@ -360,20 +411,35 @@ target_link_libraries(tests_v3
         cryptopp
         mongocxx
         bsoncxx
+        ope
 )
+
+# target_link_libraries(
+#     mongo_2 PRIVATE
+#     OpenSSL::Crypto
+#     "/opt/homebrew/opt/gmp/lib/libgmp.dylib"
+#     "/opt/homebrew/Cellar/ntl/11.6.0/lib/libntl.a"
+#     ope
+# )
 target_link_libraries(mongo_2
         PRIVATE
+
         nlohmann_json::nlohmann_json
         cryptopp
         mongocxx
         bsoncxx
+        ope
 )
+
+
 
 target_link_libraries(benchmark_generate_db_plain
         PRIVATE
         nlohmann_json::nlohmann_json
         mongocxx
         bsoncxx
+        cryptopp
+        ope
 )
 
 target_link_libraries(
@@ -383,22 +449,25 @@ target_link_libraries(
         mongocxx
         bsoncxx
         cryptopp
+        ope
 )
 
 target_link_libraries(
-        benchmark_run
+        benchmark_run_plain
         PRIVATE
         nlohmann_json::nlohmann_json
         mongocxx
         bsoncxx
-        cryptopp
+        cryptopp #include <doctest/doctest.h>
+        ope
 )
 
-
-target_link_libraries(benchmark_generate_db_encrypted PRIVATE OpenSSL::Crypto)
-target_link_libraries(benchmark_generate_db_encrypted PRIVATE "/opt/homebrew/opt/gmp/lib/libgmp.dylib")
-target_link_libraries(benchmark_generate_db_encrypted PRIVATE "/opt/homebrew/Cellar/ntl/11.6.0/lib/libntl.a")
-
-target_link_libraries(benchmark_run PRIVATE OpenSSL::Crypto)
-target_link_libraries(benchmark_run PRIVATE "/opt/homebrew/opt/gmp/lib/libgmp.dylib")
-target_link_libraries(benchmark_run PRIVATE "/opt/homebrew/Cellar/ntl/11.6.0/lib/libntl.a")
+target_link_libraries(
+        benchmark_run_encrypted
+        PRIVATE
+        nlohmann_json::nlohmann_json
+        mongocxx
+        bsoncxx
+        cryptopp #include <doctest/doctest.h>
+        ope
+)

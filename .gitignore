@@ -1,0 +1,7 @@
+benchmark_db_encrypted
+benchmark_db_plain
+.idea
+.zed
+data/db/*
+cmake-build-debug/*
+cmake-build-release/*

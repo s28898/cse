@@ -41,7 +41,7 @@ class CollectionServiceV3
 {
     public:
     using ordered_json = nlohmann::ordered_json;
-    
+
     CollectionServiceV3(
       std::shared_ptr<mongocxx::database> db,
       std::string collectionName,
@@ -70,15 +70,15 @@ class CollectionServiceV3
       m_encryptionService = std::move(encryptionService);
       m_storage = std::move(storage);
     }
-    
+
     // ============================================================
     // 0) JSON helpers (native PoC interface)
     // ============================================================
-    
+
     auto findManyFromJson(
       const ordered_json &filter,
       const mongocxx::options::find &options = {}
-    )
+    ) const
     -> InputRangeOf<bsoncxx::document::value> auto
     {
       StatementTransformerV3 st{
@@ -86,26 +86,28 @@ class CollectionServiceV3
         m_encryptionService,
         m_storage
       };
-      
+
       const bsoncxx::document::value transformedFilter = st.transform_statement_deep(filter);
-      
+
       std::cerr << "transformedFilter : " <<
                                           ordered_json::parse(
                                             bsoncxx::to_json(transformedFilter.view(), bsoncxx::ExtendedJsonMode::k_relaxed)) << '\n';
       auto cursor = (*m_db)[m_collectionName].find(transformedFilter.view(), options);
-      
-      
-      
-      return CursorView(std::move(cursor))
-             | std::views::transform(
-        [decryptor = BsonDecryptorV3{m_collectionName, m_encryptionService, m_storage}]
-          (const auto &doc) mutable -> bsoncxx::document::value
-        {
-          return decryptor.decrypt_deep(doc);
-        }
-                                    );
+
+
+
+      return
+        CursorView(std::move(cursor))
+        | std::views::transform
+        (
+            [decryptor = BsonDecryptorV3{m_collectionName, m_encryptionService, m_storage}]
+            (const auto &doc) mutable -> bsoncxx::document::value
+            {
+            return decryptor.decrypt_deep(doc);
+            }
+        );
     }
-    
+
     auto findOneFromJson(
       const ordered_json &filter,
       const mongocxx::options::find &options = {}
@@ -117,16 +119,16 @@ class CollectionServiceV3
         m_encryptionService,
         m_storage
       };
-      
+
       const bsoncxx::document::value transformedFilter = st.transform_statement_deep(filter);
-      
+
       auto res = (*m_db)[m_collectionName].find_one(transformedFilter.view(), options);
       if (!res) return {};
-      
+
       BsonDecryptorV3 decryptor{m_collectionName, m_encryptionService, m_storage};
       return decryptor.decrypt_deep(res->view());
     }
-    
+
     auto insertOneFromJson(
       const ordered_json &document,
       const mongocxx::options::insert &options = {}
@@ -138,11 +140,11 @@ class CollectionServiceV3
         m_encryptionService,
         m_storage
       };
-      
+
       const bsoncxx::document::value transformed = st.transform_statement_deep(document);
       return (*m_db)[m_collectionName].insert_one(transformed.view(), options);
     }
-    
+
     auto insertManyFromJson(
       const ordered_json &documents,
       const mongocxx::options::insert &options = {}
@@ -151,18 +153,18 @@ class CollectionServiceV3
     {
       if (!documents.is_array())
         throw std::runtime_error("CollectionServiceV3::insertManyFromJson: expected JSON array");
-      
+
       StatementTransformerV3 st{
         m_collectionName,
         m_encryptionService,
         m_storage
       };
-      
+
       std::vector<bsoncxx::document::value> transformedDocs;
       transformedDocs.reserve(documents.size());
       for (const auto &doc : documents)
         transformedDocs.push_back(st.transform_statement_deep(doc));
-      
+
       int i = 1;
       for (const auto& transformedDoc : transformedDocs) {
         std::cerr << "transformedDoc (" << i << '/' << transformedDocs.size()  << ") : "
@@ -173,7 +175,7 @@ class CollectionServiceV3
 
       return (*m_db)[m_collectionName].insert_many(transformedDocs, options);
     }
-    
+
     auto updateOneFromJson(
       const ordered_json &filter,
       const ordered_json &update,
@@ -186,12 +188,12 @@ class CollectionServiceV3
         m_encryptionService,
         m_storage
       };
-      
+
       const auto q = st.transform_statement_deep(filter);
       const auto u = st.transform_statement_deep(update);
       return (*m_db)[m_collectionName].update_one(q.view(), u.view(), options);
     }
-    
+
     auto updateManyFromJson(
       const ordered_json &filter,
       const ordered_json &update,
@@ -204,12 +206,12 @@ class CollectionServiceV3
         m_encryptionService,
         m_storage
       };
-      
+
       const auto q = st.transform_statement_deep(filter);
       const auto u = st.transform_statement_deep(update);
       return (*m_db)[m_collectionName].update_many(q.view(), u.view(), options);
     }
-    
+
     auto deleteOneFromJson(
       const ordered_json &filter,
       const mongocxx::options::delete_options &options = {}
@@ -221,11 +223,11 @@ class CollectionServiceV3
         m_encryptionService,
         m_storage
       };
-      
+
       const auto q = st.transform_statement_deep(filter);
       return (*m_db)[m_collectionName].delete_one(q.view(), options);
     }
-    
+
     auto deleteManyFromJson(
       const ordered_json &filter,
       const mongocxx::options::delete_options &options = {}
@@ -237,19 +239,19 @@ class CollectionServiceV3
         m_encryptionService,
         m_storage
       };
-      
+
       const auto q = st.transform_statement_deep(filter);
       return (*m_db)[m_collectionName].delete_many(q.view(), options);
     }
-    
+
     // ============================================================
     // 1) camelCase “main” API (bsoncxx-compatible)
     // ============================================================
-    
+
     auto findMany(
       bsoncxx::document::view_or_value filter,
       const mongocxx::options::find &options = {}
-    )
+    ) const
     -> InputRangeOf<bsoncxx::document::value> auto
     {
       const auto json = ordered_json::parse(
@@ -257,7 +259,7 @@ class CollectionServiceV3
                                            );
       return findManyFromJson(json, options);
     }
-    
+
     auto findOne(
       bsoncxx::document::view_or_value filter,
       const mongocxx::options::find &options = {}
@@ -269,7 +271,7 @@ class CollectionServiceV3
                                            );
       return findOneFromJson(json, options);
     }
-    
+
     auto insertOne(
       bsoncxx::document::view_or_value document,
       const mongocxx::options::insert &options = {}
@@ -281,7 +283,7 @@ class CollectionServiceV3
                                            );
       return insertOneFromJson(json, options);
     }
-    
+
     template<class Container>
     auto insertMany(
       const Container &documents,
@@ -300,7 +302,7 @@ class CollectionServiceV3
       }
       return insertManyFromJson(arr, options);
     }
-    
+
     auto updateOne(
       bsoncxx::document::view_or_value filter,
       bsoncxx::document::view_or_value update,
@@ -316,7 +318,7 @@ class CollectionServiceV3
                                         );
       return updateOneFromJson(q, u, options);
     }
-    
+
     auto updateMany(
       bsoncxx::document::view_or_value filter,
       bsoncxx::document::view_or_value update,
@@ -332,7 +334,7 @@ class CollectionServiceV3
                                         );
       return updateManyFromJson(q, u, options);
     }
-    
+
     auto deleteOne(
       bsoncxx::document::view_or_value filter,
       const mongocxx::options::delete_options &options = {}
@@ -344,7 +346,7 @@ class CollectionServiceV3
                                         );
       return deleteOneFromJson(q, options);
     }
-    
+
     auto deleteMany(
       bsoncxx::document::view_or_value filter,
       const mongocxx::options::delete_options &options = {}
@@ -356,89 +358,89 @@ class CollectionServiceV3
                                         );
       return deleteManyFromJson(q, options);
     }
-    
+
     // ============================================================
     // 2) driver-like lowercase overloads (mongocxx naming)
     // ============================================================
-    
+
     auto find(
       bsoncxx::document::view_or_value filter,
       const mongocxx::options::find &options = {}
-    )
+    ) const
     -> std::ranges::input_range auto { return findMany(filter, options); }
-    
+
     auto find_one(
       bsoncxx::document::view_or_value filter,
       const mongocxx::options::find &options = {}
     )
     -> bsoncxx::stdx::optional<bsoncxx::document::value> { return findOne(filter, options); }
-    
+
     auto insert_one(
       bsoncxx::document::view_or_value document,
       const mongocxx::options::insert &options = {}
     )
     -> bsoncxx::stdx::optional<mongocxx::result::insert_one> { return insertOne(document, options); }
-    
+
     template<class Container>
     auto insert_many(
       const Container &documents,
       const mongocxx::options::insert &options = {}
     )
     -> bsoncxx::stdx::optional<mongocxx::result::insert_many> { return insertMany(documents, options); }
-    
+
     auto update_one(
       bsoncxx::document::view_or_value filter,
       bsoncxx::document::view_or_value update,
       const mongocxx::options::update &options = {}
     )
     -> bsoncxx::stdx::optional<mongocxx::result::update> { return updateOne(filter, update, options); }
-    
+
     auto update_many(
       bsoncxx::document::view_or_value filter,
       bsoncxx::document::view_or_value update,
       const mongocxx::options::update &options = {}
     )
     -> bsoncxx::stdx::optional<mongocxx::result::update> { return updateMany(filter, update, options); }
-    
+
     auto delete_one(
       bsoncxx::document::view_or_value filter,
       const mongocxx::options::delete_options &options = {}
     )
     -> bsoncxx::stdx::optional<mongocxx::result::delete_result> { return deleteOne(filter, options); }
-    
+
     auto delete_many(
       bsoncxx::document::view_or_value filter,
       const mongocxx::options::delete_options &options = {}
     )
     -> bsoncxx::stdx::optional<mongocxx::result::delete_result> { return deleteMany(filter, options); }
-    
+
     // ============================================================
     // 3) snake_case overload (your named concept)
     // ============================================================
-    
+
     auto find_many(
       bsoncxx::document::view_or_value filter,
       const mongocxx::options::find &options = {}
     )
     -> InputRangeOf<bsoncxx::document::value> auto
     { return find(filter, options); }
-    
+
     // ============================================================
     // 4) run_command-like helpers (but without using run_command)
     // ============================================================
-    
+
     auto findManyFromCommand(
       const ordered_json &cmd,
       const mongocxx::options::find &options = {}
     )
     -> InputRangeOf<bsoncxx::document::value> auto;
-    
+
     auto findManyFromCommand(
       bsoncxx::document::view_or_value cmd,
       const mongocxx::options::find &options = {}
     )
     -> InputRangeOf<bsoncxx::document::value> auto;
-    
+
     private:
     std::shared_ptr<mongocxx::database> m_db;
     std::string m_collectionName;

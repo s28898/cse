@@ -18,28 +18,31 @@ using namespace nlohmann;
 #include <iostream>
 
 
+
+
+
 #include "PropertyMetadataStorage.h"
 
 struct SchemaValidatorTransformer
 {
     public:
     std::tuple<ordered_json, PropertyMetadataStorage> transform_schema_validator(const ordered_json &document);
-    
+
     ordered_json transform_object_constraints(const ordered_json &metadata);
-    
+
     ordered_json transform_array_constraints(const ordered_json &metadata);
-    
+
     ordered_json transform_property_constraints(const ordered_json &metadata);
-    
+
 //    private:
     PropertyMetadataStorage property_metadata;
     std::vector<std::string> trunk;
-    
+
     std::vector<std::vector<std::string>> &paths()
     {
       return property_metadata.m_paths;
     }
-    
+
     void dump_paths()
     {
       auto dump_path = [](const auto &path)
@@ -58,7 +61,7 @@ struct SchemaValidatorTransformer
       };
       std::ranges::for_each(paths(), dump_path);
     }
-    
+
     void save_leaf()
     {
 //      std::cerr << "save_leaf(" << leaf << ")" << "\n";
@@ -66,30 +69,30 @@ struct SchemaValidatorTransformer
 //      saved_path.reserve(trunk.size() + 1);
       saved_path.insert(saved_path.begin(), trunk.begin(), trunk.end());
 //      saved_path.emplace_back(std::move(leaf));
-      
+
       paths().emplace_back(std::move(saved_path));
     }
-    
+
     void push_trunk(std::string trunk_node)
     {
       std::cout << "pushing: " << trunk_node << '\n';
       trunk.emplace_back(std::move(trunk_node));
     }
-    
+
     void pop_trunk()
     {
       if (trunk.empty()) throw std::runtime_error("");
       trunk.pop_back();
     }
- 
-    
-    
+
+
+
     private:
     inline static void require(const ordered_json &document, std::string_view key)
     {
       if (!document.contains(key)) throw std::runtime_error("");
     }
-    
+
     void save_paths()
     {
       {
@@ -129,7 +132,7 @@ struct SchemaValidatorTransformer
           result.emplace_back(property_spec);
         }
         output_file << std::setw(2) << result;
-        
+
       }
     }
 };

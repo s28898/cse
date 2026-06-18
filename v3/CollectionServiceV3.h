@@ -71,9 +71,6 @@ class CollectionServiceV3
       m_storage = std::move(storage);
     }
 
-    // ============================================================
-    // 0) JSON helpers (native PoC interface)
-    // ============================================================
 
     auto findManyFromJson(
       const ordered_json &filter,
@@ -244,9 +241,6 @@ class CollectionServiceV3
       return (*m_db)[m_collectionName].delete_many(q.view(), options);
     }
 
-    // ============================================================
-    // 1) camelCase “main” API (bsoncxx-compatible)
-    // ============================================================
 
     auto findMany(
       bsoncxx::document::view_or_value filter,
@@ -359,9 +353,6 @@ class CollectionServiceV3
       return deleteManyFromJson(q, options);
     }
 
-    // ============================================================
-    // 2) driver-like lowercase overloads (mongocxx naming)
-    // ============================================================
 
     auto find(
       bsoncxx::document::view_or_value filter,
@@ -414,9 +405,6 @@ class CollectionServiceV3
     )
     -> bsoncxx::stdx::optional<mongocxx::result::delete_result> { return deleteMany(filter, options); }
 
-    // ============================================================
-    // 3) snake_case overload (your named concept)
-    // ============================================================
 
     auto find_many(
       bsoncxx::document::view_or_value filter,
@@ -425,9 +413,6 @@ class CollectionServiceV3
     -> InputRangeOf<bsoncxx::document::value> auto
     { return find(filter, options); }
 
-    // ============================================================
-    // 4) run_command-like helpers (but without using run_command)
-    // ============================================================
 
     auto findManyFromCommand(
       const ordered_json &cmd,
@@ -449,7 +434,6 @@ class CollectionServiceV3
 };
 
 static_assert(MongoDriverSimpleSubset<mongocxx::collection>);
-// CollectionServiceV3 should also satisfy the subset you use for templates:
 static_assert(MongoDriverSimpleSubset<CollectionServiceV3>);
 
 #endif // MONGO_2_COLLECTIONSERVICE_V3_H

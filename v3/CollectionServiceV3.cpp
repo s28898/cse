@@ -11,15 +11,11 @@ auto CollectionServiceV3::findManyFromCommand(
 )
 -> InputRangeOf<bsoncxx::document::value> auto
 {
-  // Minimal “run_command-like” shape for find:
-  // { "find": "<collection>", "filter": { ... }, ... }
-  //
-  // This is CollectionService, so we DO NOT allow overriding the collection name here.
   if (cmd.contains("find"))
   {
     if (!cmd.at("find").is_string())
       throw std::runtime_error("CollectionServiceV3::findManyFromCommand: 'find' must be a string");
-    
+
     const auto requested = cmd.at("find").get<std::string>();
     if (requested != m_collectionName)
       throw std::runtime_error(
@@ -27,11 +23,11 @@ auto CollectionServiceV3::findManyFromCommand(
         "', but this service is bound to '" + m_collectionName + "'"
                               );
   }
-  
+
   const auto filter = cmd.contains("filter")
                       ? cmd.at("filter")
                       : nlohmann::ordered_json::object();
-  
+
   return findManyFromJson(filter, options);
 }
 

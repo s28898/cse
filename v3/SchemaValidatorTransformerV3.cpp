@@ -3,16 +3,13 @@
 
 std::string SchemaValidatorTransformerV3::resolve_encryption_profile(std::string_view enc)
 {
-  // Legacy aliases from earlier PoC.
   if (enc == "AES") return "AES256_CTR";
   if (enc == "OPE") return "OPE_32_64";
 
-  // Explicit supported profiles (CTR-only).
   if (enc == "AES256_CTR") return "AES256_CTR";
   if (enc == "AES192_CTR") return "AES192_CTR";
   if (enc == "OPE_32_64")  return "OPE_32_64";
 
-  // Intentionally no GCM support.
   throw std::runtime_error(std::string("Unsupported encryption profile (V3 CTR-only): ") + std::string(enc));
 }
 
@@ -27,7 +24,7 @@ SchemaValidatorTransformerV3::transform_schema_validator(const ordered_json& doc
   transformed_schema_validator["validator"]["$jsonSchema"] =
     transform_object_constraints(document["validator"]["$jsonSchema"]);
 
-  save_paths(); // keep same behavior as current PoC
+  save_paths();
   return {transformed_schema_validator, std::move(this->property_metadata)};
 }
 
@@ -68,7 +65,6 @@ SchemaValidatorTransformerV3::transform_object_constraints(const ordered_json& c
     }
     else
     {
-      // passthrough
       result_metadata[key] = value;
     }
   }
@@ -108,7 +104,6 @@ SchemaValidatorTransformerV3::transform_array_constraints(const ordered_json& me
     }
     else
     {
-      // passthrough
       result_metadata[key] = value;
     }
   }
@@ -179,7 +174,6 @@ SchemaValidatorTransformerV3::transform_property_constraints(const ordered_json&
 
 void SchemaValidatorTransformerV3::save_paths()
 {
-  // Same output format and paths as in your current version.
   {
     ordered_json result;
     std::ofstream output_file("../data/validator/types.json");
